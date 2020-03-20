@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackjack | Casinowin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        .restart-modal>.modal {
+            position:absolute;
+            height:1000px;
+            width:100%;
+            background-color:transparent;
+            opacity:0.4;
+        }
+        .restart-modal>.modal-text {
+            position:absolute;
+            z-index:9999;
+            background-color:green;
+            width:600px;
+            text-align:center;
+        }
+        .money {
+            margin-right:5px;
+        }
+        
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="game-container">
+        <div v-if="gameDone" class="restart-modal"><div class="modal"></div><div class="modal-text"><h2>{{gameMessage}}</h2><button @click="restartRound">next round</button></div></div>
+        <h1>{{ title }}</h1>
+        <!-- DEALER -->
+        <h3>Dealer</h3>
+        <p v-text="dealerPoints">dealer: {{dealerPoints}}</p>
+        <ul style="display:flex;list-style-type: none;">
+            <li v-for="card in dealerCards" v-if="!card[0].Hidden"><img :src="getImg(card[0].Value,card[0].Suit)"></li>
+        </ul>
+        <!-- PLAYER -->
+        <h3>Player</h3>
+        <p v-text="playerPoints">Player: {{playerPoints}}</p>
+        <ul style="display:flex;list-style-type: none;">
+            <li v-for="card in playerCards" style=""><img :src="getImg(card[0].Value,card[0].Suit)"></li>
+        </ul>
+        <button @click="hit">Hit me</button>
+        <button @click="stand">Stand</button>
+        <div ><span class="money" v-text="money"></span><i class="fa fa-euro"></i></div>
+        <div class="betting">
+            <button @click="playerBet(5)">Bet 5</button>
+            <button @click="playerBet(10)">Bet 10</button>
+            <button @click="playerBet(25)">Bet 25</button>
+            <button @click="playerBet(50)">Bet 50</button>
+            <button @click="playerBet(100)">Bet 100</button>
+            <button @click="playerBet(500)">Bet 500</button>
+            <p>you bet: {{bet}}</p>
+        </div>
+        </div>
+    </div>
+
+
+    <script src="https://unpkg.com/vue@2.6.10/dist/vue.js"></script>
+    <script>
+      var app =  new Vue({
+            el: '#root',
+            data: {
+                title: "Blackjack | Casinowin",
+                deck: [],
+                values: ['2','3','4','5','6','7','8','9','10','J','Q','K','A'],
+                suits: ['Spades', 'Hearts', 'Diamonds', 'Clubs'],
+                playerHit: '',
+                playerCards: [],
+                playerPoints: 0,
+                dealerHit: '',
+                dealerCards: [],
+                dealerPoints: 0,
+                dealersTurn: false,
+                gameMessage: 'Busted, Dealer won',
+                gameStatus: '',
+                gameDone: false,
+                money: 0,
+                bet: 0,
+                didPlayerBet: false
+                
+            },
+            computed: {
+               
+            },
+            methods: {
+                createDeck(){
+                    for(let i = 0;i<this.values.length;i++){
+                        for(j=0;j<this.suits.length;j++){
+                            let points = parseInt(this.values[i]);
+                            switch(this.values[i]){
+                                case 'J':
+                                    points = 10;
+                                break;
+                                case 'Q':
+                                    points = 10;
+                                break;
+                                case 'K':
+                                    points = 10;
+                                break;
+                                case 'A':
+                                    points = 11;
+                                break;
+                            }
+                            let card = {Value:this.values[i], Suit:this.suits[j], Points:points, Hidden:false};
+                            this.deck.push(card);
+                        }
+                    }
+                },
+                hit(){
+                    randomNum = Math.floor(Math.random() * this.deck.length);
+                    this.playerHit = this.deck.splice(randomNum,1);
+                    this.playerCards.push(this.playerHit);
+                    this.countPoints();
+                    this.lose();
+                    this.win();
+                    
+                },
+                playerBet(amount){
+                    this.money = this.money - amount;
+                    this.bet = this.bet + amount;
+                },
+                playerHitCard(){
+                    this.hit();
+                    this.lose();
+                    this.win();
+                },
+                dealerHitCard(){
+                    randomNum = Math.floor(Math.random() * this.deck.length);
+                    this.dealerHit = this.deck.splice(randomNum,1);
+                    this.dealerCards.push(this.dealerHit);
+                    
+                },
+                lose(){
+                    if(this.playerPoints > 21){
+                        this.gameStatus = "pBus";
+                        this.gameMessage = 'You busted';
+                        this.bet = 0;
+                        this.gameDone = true;
+                    }
+                },
+                win(){
+                    if(this.playerPoints == 21){
+                        this.gameStatus = "pWin";
+                        this.gameMessage = 'Blackjack! You win ' + (this.bet * 3);
+                        this.money = this.money + (this.bet * 3);
+                        this.gameDone = true;
+                    }
+                },
+                end(){
+                    if(this.dealerPoints == this.playerPoints && this.dealerPoints >= 17){
+                        this.gameStatus = 'push';
+                        this.gameMessage = 'Push nobody wins, you get your ' + this.bet + ' bet back';
+                        this.money = this.money + this.bet;
+                        this.bet = 0;
+                        this.gameDone = true;
+                        
+                    }
+                    if(this.dealerPoints == 21 || this.dealerPoints < 21 && this.dealerPoints > this.playerPoints){
+                        this.gameStatus = 'dWin';
+                        this.gameMessage = 'Dealer wins';
+                        this.bet = 0;
+                        this.gameDone = true;
+                    }
+                    if(this.dealerPoints > 21){
+                        this.gameStatus = 'dBus';
+                        this.gameMessage ='Dealer busted, you win ' + (this.bet * 3);
+                        this.money = this.money + (this.bet * 3);
+                        this.bet = 0;
+                        this.gameDone = true;
+                    }
+                    if(this.dealerPoints < this.playerPoints){
+                        this.gameStatus = 'dBus';
+                        this.gameMessage ='You win ' + (this.bet * 2);
+                        this.money = this.money + (this.bet * 2);
+                        this.bet = 0;
+                        this.gameDone = true;
+                    }
+                },
+                stand(){
+                    this.dealersTurn = true;
+                    while(this.dealerPoints < this.playerPoints && this.dealerPoints < 17){
+                        this.dealerHitCard();
+                        this.countPoints();
+                    }
+                    this.end();
+                    
+                    
+                },
+                countPoints() {
+                    this.playerPoints = 0;
+                    this.dealerPoints = 0;
+                    for(let i=0;i<this.playerCards.length;i++){
+                        this.playerPoints += this.playerCards[i][0].Points;
+                        
+                    }
+                    for(let i=0;i<this.dealerCards.length;i++){
+                        if(this.dealerCards[i][0].Hidden == false){
+                            this.dealerPoints += parseInt(this.dealerCards[i][0].Points);
+                        }
+                        
+                    }
+                },
+                getImg: function(value, suit){
+                    
+                        var imgPath = 'img/' + value + '_' + suit + '.png';
+                        return imgPath;        
+                    
+
+                },
+                
+                startRound(){
+                    for(let i=0;i<2;i++){
+                        this.hit();
+                        this.dealerHitCard();
+                    }
+                    this.dealerCards[1][0].Hidden = true;
+                },
+                restartRound(){
+                    this.deck = [];
+                    this.playerCards = [];
+                    this.dealerCards = [];
+                    this.gameDone = false;
+                    this.createDeck();
+                    this.startRound();
+                    this.countPoints();
+                }
+            },
+            mounted(){
+               this.createDeck();
+               this.startRound();
+               this.win();
+               this.money = 1000;
+            }
+        })
+    </script>
+</body>
+
+</html>
