@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackjack | Casinowin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        .restart-modal>.modal {
+            position:absolute;
+            height:1000px;
+            width:100%;
+            background-color:transparent;
+            opacity:0.4;
+        }
+        .restart-modal>.modal-text {
+            position:absolute;
+            z-index:9999;
+            background-color: rgba(12, 12, 12, 0.7);
+            width: 179px;
+            top: 305px;
+            right: 0;
+            text-align:center;
+            padding:5px;
+        }
+        .restart-modal{
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .money {
+            margin-right:2px;
+        }
+        .game-container {
+            background-image:url('img/poker-table.jpg');
+            background-size:cover;
+            background-repeat: no-repeat;
+            margin:0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 600px;
+        }
+        body {
+            padding:0;
+            margin:0;
+        }
+        .cards {
+            width:100px;
+        }
+        .chips {
+            width:64px;
+        }
+        .btn-primary {
+            padding:5px 10px;
+            background-color:royalblue;
+            border:1px solid royalblue;
+            border-radius:4px;
+            font-weight: 700;
+        }
+        .infobar {
+            border-radius:12px;
+            width:200px;
+            color:lightgrey;
+            padding:5px 10px;
+            margin-right:8px;
+            background-color: rgba(0, 0, 0, 0.5);
+            
+
+        }
+        .infobar-wrap {
+            display:flex;
+            margin-top:6px;
+            margin-bottom:6px;
+            
+        }
+        .infobar-text {
+            position:relative;
+        }
+        .infobar-overlay {
+            background-color:black;
+            width:100%;
+        
+        }
+        body {
+            width:600px;
+        }
+        
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="game-container">
+        <div v-if="gameDone" class="restart-modal"><div class="modal"></div><div class="modal-text"><h2>{{gameMessage}}</h2><button class="btn-primary" @click="restartRound">next round</button></div></div>
+        
+        <!-- DEALER -->
+        <h3>Dealer</h3>
+        <p v-text="dealerPoints">dealer: {{dealerPoints}}</p>
+        <ul style="display:flex;list-style-type: none;">
+            <li  v-for="card in dealerCards" v-if="!card[0].Hidden"><img class="cards" :src="getImg(card[0].Value,card[0].Suit)"></li>
+        </ul>
+        <!-- PLAYER -->
+        <h3>Player</h3>
+        <p v-text="playerPoints">Player: {{playerPoints}}</p>
+        <ul style="display:flex;list-style-type: none;">
+            <li v-for="card in playerCards" style=""><img class="cards" :src="getImg(card[0].Value,card[0].Suit)"></li>
+        </ul>
+        <div class="btn-wrap">
+            <button class="btn-primary" @click="hit" :disabled="!didPlayerBet">Hit me</button>
+            <button class="btn-primary" @click="stand" :disabled="!didPlayerBet">Stand</button>
+        </div>
+       <div class="infobar-wrap">
+        <div class="infobar"><div class="infobar-overlay"></div><span class="infobar-text">Cash: <span class="money" v-text="money"></span><i class="fa fa-euro"></i> Bet: <span>{{ bet }}</span> Win: <span>{{ winnings }}</span> </span></div>
+        <button class="btn-primary" @click="didPlayerBet = true">Bet</button>
+        </div>
+        <div v-show="didPlayerBet == false" class="betting">
+            <img class="chips" src="img/chip-5.png" @click="playerBet(5)">
+            <img class="chips" src="img/chip-10.png" @click="playerBet(10)">
+            <img class="chips" src="img/chip-25.png" @click="playerBet(25)">
+            <img class="chips" src="img/chip-50.png" @click="playerBet(50)">
+            <img class="chips" src="img/chip-100.png" @click="playerBet(100)">
+            <img class="chips" src="img/chip-500.png" @click="playerBet(500)">
+        </div>
+        </div>
+    </div>
+
+
+    <script src="https://unpkg.com/vue@2.6.10/dist/vue.js"></script>
+    <script>
+        // Sounds
+      var betSound = new Audio();
+      betSound.src= "sound/chipSound.mp3";
+      betSound.volume = 0.2;
+        // Vue Instance
+      var app =  new Vue({
+            el: '#root',
+            data: {
+                title: "Blackjack | Casinowin",
+                deck: [],
+                values: ['2','3','4','5','6','7','8','9','10','J','Q','K','A'],
+                suits: ['Spades', 'Hearts', 'Diamonds', 'Clubs'],
+                playerHit: '',
+                playerCards: [],
+                playerPoints: 0,
+                dealerHit: '',
+                dealerCards: [],
+                dealerPoints: 0,
+                dealersTurn: false,
+                gameMessage: 'Busted, Dealer won',
+                gameStatus: '',
+                gameDone: false,
+                money: 0,
+                bet: 0,
+                winnings: 0,
+                didPlayerBet: false
+                
+            },
+            computed: {
+               
+            },
+            methods: {
+                createDeck(){
+                    for(let i = 0;i<this.values.length;i++){
+                        for(j=0;j<this.suits.length;j++){
+                            let points = parseInt(this.values[i]);
+                            switch(this.values[i]){
+                                case 'J':
+                                    points = 10;
+                                break;
+                                case 'Q':
+                                    points = 10;
+                                break;
+                                case 'K':
+                                    points = 10;
+                                break;
+                                case 'A':
+                                    points = 11;
+                                break;
+                            }
+                            let card = {Value:this.values[i], Suit:this.suits[j], Points:points, Hidden:false};
+                            this.deck.push(card);
+                        }
+                    }
+                },
+                hit(){
+                    randomNum = Math.floor(Math.random() * this.deck.length);
+                    this.playerHit = this.deck.splice(randomNum,1);
+                    this.playerCards.push(this.playerHit);
+                    this.countPoints();
+                    this.lose();
+                    this.win();
+                    
+                },
+                playerBet(amount){
+                    this.money = this.money - amount;
+                    this.bet = this.bet + amount;
+                    betSound.pause();
+                    betSound.currentTime = 0;
+                    betSound.play();
+                },
+                playerHitCard(){
+                    this.hit();
+                    this.lose();
+                    this.win();
+                },
+                dealerHitCard(){
+                    randomNum = Math.floor(Math.random() * this.deck.length);
+                    this.dealerHit = this.deck.splice(randomNum,1);
+                    this.dealerCards.push(this.dealerHit);
+                    
+                },
+                lose(){
+                    if(this.playerPoints > 21){
+                        this.gameStatus = "pBus";
+                        this.gameMessage = 'You busted';
+                        this.bet = 0;
+                        this.winnings = 0;
+                        this.didPlayerBet = false;
+                        this.gameDone = true;
+                    }
+
+                },
+                win(){
+                    if(this.playerPoints == 21){
+                        this.gameStatus = "pWin";
+                        this.gameMessage = 'Blackjack! You win ' + (this.bet * 3);
+                        this.money = this.money + (this.bet * 3);
+                        this.winnings = this.bet * 3;
+                        this.didPlayerBet = false;
+                        this.gameDone = true;
+                    }
+                },
+                end(){
+                    if(this.dealerPoints == this.playerPoints && this.dealerPoints >= 17){
+                        this.gameStatus = 'push';
+                        this.gameMessage = 'Push nobody wins, you get your ' + this.bet + ' bet back';
+                        this.money = this.money + this.bet;
+                        
+                        this.didPlayerBet = false;
+                        this.gameDone = true;
+                        
+                    }
+                    if(this.dealerPoints == 21 || this.dealerPoints < 21 && this.dealerPoints > this.playerPoints){
+                        this.gameStatus = 'dWin';
+                        this.gameMessage = 'Dealer wins';
+                        
+                        this.didPlayerBet = false;
+                        this.gameDone = true;
+                    }
+                    if(this.dealerPoints > 21){
+                        this.gameStatus = 'dBus';
+                        this.gameMessage ='Dealer busted, you win ' + (this.bet * 3);
+                        this.money = this.money + (this.bet * 3);
+                        
+                        this.winnings = this.bet * 3;
+                        this.didPlayerBet = false;
+                        this.gameDone = true;
+                    }
+                    if(this.dealerPoints < this.playerPoints){
+                        this.gameStatus = 'dBus';
+                        this.gameMessage ='You win ' + (this.bet * 2);
+                        this.money = this.money + (this.bet * 2);
+                        this.winnings = this.bet * 2;
+                        
+                        this.didPlayerBet = false;
+                        this.gameDone = true;
+                    }
+                },
+                stand(){
+                    this.dealersTurn = true;
+                    while(this.dealerPoints < this.playerPoints && this.dealerPoints < 17){
+                        this.dealerHitCard();
+                        this.countPoints();
+                    }
+                    this.end();
+                    
+                    
+                },
+                countPoints() {
+                    this.playerPoints = 0;
+                    this.dealerPoints = 0;
+                    for(let i=0;i<this.playerCards.length;i++){
+                        this.playerPoints += this.playerCards[i][0].Points;
+                        
+                    }
+                    for(let i=0;i<this.dealerCards.length;i++){
+                        if(this.dealerCards[i][0].Hidden == false){
+                            this.dealerPoints += parseInt(this.dealerCards[i][0].Points);
+                        }
+                        
+                    }
+                },
+                getImg: function(value, suit){
+                    
+                        var imgPath = 'img/' + value + '_' + suit + '.png';
+                        return imgPath;        
+                    
+
+                },
+                
+                startRound(){
+                    for(let i=0;i<2;i++){
+                        this.hit();
+                        this.dealerHitCard();
+                    }
+                    this.dealerCards[1][0].Hidden = true;
+                },
+                restartRound(){
+                    this.deck = [];
+                    this.playerCards = [];
+                    this.dealerCards = [];
+                    this.gameDone = false;
+                    this.bet = 0;
+                    this.winnings = 0;
+                    this.createDeck();
+                    this.startRound();
+                    this.countPoints();
+                }
+            },
+            mounted(){
+               this.createDeck();
+               this.startRound();
+               this.win();
+               this.money = 1000;
+            }
+        })
+    </script>
+</body>
+
+</html>
